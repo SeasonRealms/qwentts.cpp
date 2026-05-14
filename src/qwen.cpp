@@ -258,8 +258,8 @@ struct qt_context * qt_init(const struct qt_init_params * params) {
 
         // BPE tokenizer payload lives inside the talker GGUF. Load the
         // base vocab + the qwen3-tts text specials in one shot. The
-        // specials key list mirrors what the standalone CLI used to
-        // do before the facade hoisted the load chain.
+        // specials key list matches the keys written by the conversion
+        // script under the qwen3-tts.text.* namespace.
         if (!load_bpe_from_gguf(&q->tok, params->talker_path)) {
             qt_throw("qt_init: load_bpe_from_gguf failed for '%s'", params->talker_path);
         }

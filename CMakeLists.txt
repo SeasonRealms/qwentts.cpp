@@ -109,7 +109,7 @@ target_link_libraries(qwen-core PUBLIC ggml)
 link_ggml_backends(qwen-core)
 
 # Public shared library for ABI consumers (Python ctypes, Rust bindgen,
-# Go cgo). Opt-in : -DQWENTTS_SHARED=ON at configure time. Exports only
+# Go cgo). Opt-in : -DQWEN_SHARED=ON at configure time. Exports only
 # the QT_API-marked symbols ; every internal pipeline_* / backend_*
 # stays hidden inside the .so. Intentionally a different target name
 # from qwen-core so the static path used by the tools is never affected.
