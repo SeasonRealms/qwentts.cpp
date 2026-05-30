@@ -161,7 +161,10 @@ static inline float silu(float v) {
 
 // Apply text_projection: F1 (text_hidden -> text_hidden) -> SiLU -> F2
 // (text_hidden -> hidden), both with bias.
-static void text_projection_load(PromptTextProjection * tp, const GGUFModel & gf, int text_hidden_size, int hidden_size) {
+static void text_projection_load(PromptTextProjection * tp,
+                                 const GGUFModel &      gf,
+                                 int                    text_hidden_size,
+                                 int                    hidden_size) {
     tp->in_dim  = text_hidden_size;
     tp->hid_dim = text_hidden_size;
     tp->out_dim = hidden_size;
@@ -189,8 +192,8 @@ static bool project_text_ids_backend(PipelineTTS * pt, const int32_t * ids, int 
         return false;
     }
 
-    const int hidden    = pt->talker.hidden_size;
-    const int max_nodes = 64;
+    const int    hidden    = pt->talker.hidden_size;
+    const int    max_nodes = 64;
     const size_t graph_arena_bytes =
         ggml_tensor_overhead() * (size_t) max_nodes + ggml_graph_overhead_custom((size_t) max_nodes, false);
 
@@ -244,9 +247,9 @@ static bool project_text_ids_backend(PipelineTTS * pt, const int32_t * ids, int 
 }
 
 static void project_text_range_host(PipelineTTS * pt, const int * ids, int start, int end, float * dst) {
-    const int hidden   = pt->talker.hidden_size;
-    const int text_hid = pt->talker.text_hidden_size;
-    PromptCache & pc = pt->prompt_cache;
+    const int     hidden   = pt->talker.hidden_size;
+    const int     text_hid = pt->talker.text_hidden_size;
+    PromptCache & pc       = pt->prompt_cache;
 
     std::vector<float> e((size_t) text_hid);
     std::vector<float> y((size_t) hidden);
@@ -279,7 +282,7 @@ static bool prompt_cache_load(PipelineTTS * pt) {
     const int text_hid = pt->talker.text_hidden_size;
 
     PromptCache & pc = pt->prompt_cache;
-    pc.initialized = false;
+    pc.initialized   = false;
     pc.prefix_entries.clear();
     pc.max_prefix_entries = 16;
 
@@ -346,7 +349,7 @@ static PromptPrefixCacheEntry * prompt_prefix_cache_find(PromptCache & pc, const
     return NULL;
 }
 
-static void prompt_prefix_cache_store(PromptCache &      pc,
+static void prompt_prefix_cache_store(PromptCache &       pc,
                                       const std::string & key,
                                       int                 rows,
                                       int                 hidden,
@@ -363,7 +366,7 @@ static void prompt_prefix_cache_store(PromptCache &      pc,
         pc.prefix_entries.erase(pc.prefix_entries.begin());
     }
     PromptPrefixCacheEntry entry;
-    entry.key = key;
+    entry.key  = key;
     entry.rows = rows;
     entry.input_embed_prefix.assign(data, data + (size_t) rows * (size_t) hidden);
     pc.prefix_entries.push_back(std::move(entry));
@@ -520,10 +523,10 @@ static bool prompt_builder_build(PipelineTTS *         pt,
         // place of an embedding lookup whenever it sees -2.
         codec_prefill.push_back(-2);
     }
-    const int n_prefill      = (int) codec_prefill.size();
-    const int T_codec_prefix = n_prefill + 2;  // + codec_pad + codec_bos
-    const int n_pad_pre      = T_codec_prefix - 2;
-    std::vector<int> codec_left = codec_prefill;
+    const int        n_prefill      = (int) codec_prefill.size();
+    const int        T_codec_prefix = n_prefill + 2;  // + codec_pad + codec_bos
+    const int        n_pad_pre      = T_codec_prefix - 2;
+    std::vector<int> codec_left     = codec_prefill;
     codec_left.push_back(pt->codec_specials.pad_id);
 
     // Tokenize the instruct segment when non empty. The wrapper mirrors
@@ -591,9 +594,9 @@ static bool prompt_builder_build(PipelineTTS *         pt,
         return out->input_embed.data() + (size_t) r * (size_t) hidden;
     };
 
-    const int prefix_rows = N_instruct + 3 + (int) codec_left.size();
-    const bool cacheable_prefix = !icl && ref_spk_emb == NULL;
-    std::string prefix_key;
+    const int                prefix_rows      = N_instruct + 3 + (int) codec_left.size();
+    const bool               cacheable_prefix = !icl && ref_spk_emb == NULL;
+    std::string              prefix_key;
     PromptPrefixCacheEntry * prefix_hit = NULL;
     if (cacheable_prefix) {
         prefix_key = prompt_prefix_cache_key(instruct_ids, ids.data(), codec_left);

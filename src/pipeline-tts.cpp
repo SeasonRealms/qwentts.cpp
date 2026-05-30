@@ -259,7 +259,7 @@ void pipeline_tts_free(PipelineTTS * pt) {
     code_predictor_weights_free(&pt->code_predictor);
     talker_weights_free(&pt->talker);
     gf_close(&pt->gguf_talker);
-    pt->prompt_cache = {};
+    pt->prompt_cache        = {};
     pt->backend             = NULL;
     pt->bp                  = {};
     pt->has_speaker_encoder = false;
