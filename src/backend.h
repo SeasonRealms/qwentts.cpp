@@ -63,10 +63,18 @@ static ggml_backend_t cpu_backend_new(int n_threads) {
 // Initialize backends: load all available (CUDA, Metal, Vulkan...),
 // pick the best one, keep CPU as fallback.
 // label: log prefix, e.g. "DiT", "VAE", "LM"
+// force_backend: NULL / "" → auto-select via ggml_backend_init_best.
+//   Non-empty → call ggml_backend_init_by_name(force_backend) to force
+//   a specific backend (e.g. "CPU", "CUDA0", "Vulkan0", "Metal").
+// gpu_device_index: -1 → use the first/only device of the chosen type.
+//   >=0 → enumerate devices matching the backend type prefix and pick
+//   the one at that index (0 = first, 1 = second, …).
 // Subsequent calls reuse the same backend (single VMM pool). Returns a
 // BackendPair with .backend == NULL when initialisation fails; the caller
 // must check this before passing it to any pipeline_*_load.
-static BackendPair backend_init(const char * label) {
+static BackendPair backend_init(const char * label,
+                                const char * force_backend   = nullptr,
+                                int          gpu_device_index = -1) {
     if (g_backend_refs > 0) {
         g_backend_refs++;
         qt_log(QT_LOG_INFO, "[Load] %s backend: %s (shared)", label, ggml_backend_name(g_backend_cache.backend));
@@ -76,27 +84,56 @@ static BackendPair backend_init(const char * label) {
     ggml_backend_load_all();
     BackendPair bp = {};
 
-    // GGML_BACKEND env var: force a specific device instead of auto-best.
-    // Device names: CUDA0, Vulkan0, CPU, BLAS (see ggml_backend_dev_name).
-    const char * force_backend = std::getenv("GGML_BACKEND");
-    if (force_backend) {
-        bp.backend = ggml_backend_init_by_name(force_backend, nullptr);
-        if (!bp.backend) {
-            // Assemble the device list inline so the log callback gets one
-            // self-contained line instead of three. The available list can
-            // grow with each backend that registers, so a std::string here
-            // keeps the formatting allocation-free for the common case.
-            std::string msg = "[Load] GGML_BACKEND=";
-            msg += force_backend;
-            msg += " not found. Available:";
+    if (force_backend && force_backend[0]) {
+        // ── Explicit backend requested ──────────────────────────
+        if (gpu_device_index >= 0) {
+            // Select a specific device among those whose name starts
+            // with the given backend prefix (e.g. "Vulkan" matches
+            // "Vulkan0", "Vulkan1", …).
+            int found = 0;
+            size_t prefix_len = std::strlen(force_backend);
             for (size_t i = 0; i < ggml_backend_dev_count(); i++) {
-                msg += ' ';
-                msg += ggml_backend_dev_name(ggml_backend_dev_get(i));
+                ggml_backend_dev_t dev = ggml_backend_dev_get(i);
+                const char * dev_name = ggml_backend_dev_name(dev);
+                if (std::strncmp(dev_name, force_backend, prefix_len) == 0) {
+                    if (found == gpu_device_index) {
+                        bp.backend = ggml_backend_dev_init(dev, nullptr);
+                        break;
+                    }
+                    found++;
+                }
             }
-            qt_log(QT_LOG_ERROR, "%s", msg.c_str());
-            return BackendPair{};
+            if (!bp.backend) {
+                std::string msg = "[Load] backend='";
+                msg += force_backend;
+                msg += "' device_index=";
+                msg += std::to_string(gpu_device_index);
+                msg += " not found (";
+                msg += std::to_string(found);
+                msg += " matching devices). Available:";
+                for (size_t i = 0; i < ggml_backend_dev_count(); i++) {
+                    msg += ' ';
+                    msg += ggml_backend_dev_name(ggml_backend_dev_get(i));
+                }
+                qt_log(QT_LOG_ERROR, "%s", msg.c_str());
+                return BackendPair{};
+            }
+        } else {
+            bp.backend = ggml_backend_init_by_name(force_backend, nullptr);
+            if (!bp.backend) {
+                std::string msg = "[Load] backend='";
+                msg += force_backend;
+                msg += "' not found. Available:";
+                for (size_t i = 0; i < ggml_backend_dev_count(); i++) {
+                    msg += ' ';
+                    msg += ggml_backend_dev_name(ggml_backend_dev_get(i));
+                }
+                qt_log(QT_LOG_ERROR, "%s", msg.c_str());
+                return BackendPair{};
+            }
         }
     } else {
+        // ── Auto-select (original behavior) ────────────────────
         bp.backend = ggml_backend_init_best();
     }
     if (!bp.backend) {
