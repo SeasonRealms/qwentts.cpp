@@ -184,11 +184,13 @@ void qt_log_set(qt_log_cb cb, void * user_data) {
 }
 
 void qt_init_default_params(struct qt_init_params * p) {
-    p->abi_version = QT_ABI_VERSION;
-    p->talker_path = nullptr;
-    p->codec_path  = nullptr;
-    p->use_fa      = true;
-    p->clamp_fp16  = false;
+    p->abi_version      = QT_ABI_VERSION;
+    p->talker_path      = nullptr;
+    p->codec_path       = nullptr;
+    p->use_fa           = true;
+    p->clamp_fp16       = false;
+    p->backend          = nullptr;   // auto-select
+    p->gpu_device_index = -1;        // auto
 }
 
 void qt_tts_default_params(struct qt_tts_params * p) {
@@ -259,7 +261,7 @@ struct qt_context * qt_init(const struct qt_init_params * params) {
     // qt_free, which is idempotent on partial state (NULL-safe sched,
     // NULL GGUF handles, refcount-correct backend release).
     try {
-        q->bp = backend_init("Talker");
+        q->bp = backend_init("Talker", params->backend, params->gpu_device_index);
         if (!q->bp.backend) {
             qt_throw("qt_init: backend_init failed (no GGML backend available)");
         }
