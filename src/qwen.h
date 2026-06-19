@@ -57,7 +57,7 @@ extern "C" {
 // git short hash + commit date string returned by qt_version(); for
 // binding compat checks, QT_ABI_VERSION is the only number that
 // matters.
-#define QT_ABI_VERSION 2
+#define QT_ABI_VERSION 3
 
 // Returns a static string of the form "<git-hash> (<date>)" identifying
 // the exact commit this binary was built from. Safe to call from any
@@ -121,10 +121,19 @@ struct qt_init_params {
     const char * codec_path;
     bool         use_fa;
     bool         clamp_fp16;
+    // ABI v3: explicit backend override (NULL / "" → auto-select via
+    // ggml_backend_init_best).  Named backends: "CPU", "CUDA0",
+    // "Vulkan0", "Vulkan1", "Metal", "BLAS", "SYCL0", etc.
+    const char * backend;
+    // ABI v3: GPU device index within the named backend (-1 → auto).
+    // >=0 forces ggml_backend_dev_get(idx) + dev_init for that index
+    // among devices matching the backend prefix.
+    int          gpu_device_index;
 };
 
 // Initialise to the standard defaults: both paths NULL (caller must set
-// them before calling qt_init), use_fa true, clamp_fp16 false.
+// them before calling qt_init), use_fa true, clamp_fp16 false,
+// backend NULL (auto-select), gpu_device_index -1 (auto).
 QT_API void qt_init_default_params(struct qt_init_params * p);
 
 // Allocate every module described by params. Returns NULL on any
