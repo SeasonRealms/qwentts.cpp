@@ -105,6 +105,19 @@ QT_API void qt_audio_free(struct qt_audio * a);
 // Opaque handle. Definition lives in qwen.cpp. Use qt_init / qt_free.
 struct qt_context;
 
+// One available GGML backend device. name is the exact string that can
+// be passed back to qt_init_params.backend (for example "CPU",
+// "Vulkan1", "CUDA0"). backend_reg is the backend family / registry
+// name (for example "CPU", "Vulkan", "CUDA"). description is a
+// human-readable device name. device_id may be NULL when unavailable.
+struct qt_backend_info {
+    const char * name;
+    const char * backend_reg;
+    const char * description;
+    const char * device_id;
+    int          device_type;
+};
+
 // Initialisation parameters. Both GGUF paths are required: the talker
 // GGUF holds the LM weights, the code predictor MTP head and (for
 // custom_voice / voice_design checkpoints) the speaker encoder; the
@@ -193,6 +206,14 @@ typedef void (*qt_log_cb)(enum qt_log_level level, const char * msg, void * user
 // thread. Storage is process wide, not per handle, matching
 // whisper_log_set / llama_log_set / ov_log_set.
 QT_API void qt_log_set(qt_log_cb cb, void * user_data);
+
+// Enumerate available GGML backend devices without loading any model.
+// qt_backend_count() loads all backend plugins once and returns the
+// number of visible devices. qt_backend_get_info() fills `out` for an
+// index in [0, qt_backend_count()). Returns false on invalid params or
+// out-of-range index and surfaces the reason through qt_last_error().
+QT_API int  qt_backend_count(void);
+QT_API bool qt_backend_get_info(int index, struct qt_backend_info * out);
 
 // Synthesis parameters. Strings are NULL terminated UTF-8; NULL maps
 // to empty where the underlying pipeline accepts it. The selection
