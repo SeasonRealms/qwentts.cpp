@@ -183,6 +183,41 @@ void qt_log_set(qt_log_cb cb, void * user_data) {
     g_log_cb.store(cb, std::memory_order_release);
 }
 
+int qt_backend_count(void) {
+    ggml_backend_load_all();
+    return (int) ggml_backend_dev_count();
+}
+
+bool qt_backend_get_info(int index, struct qt_backend_info * out) {
+    if (!out) {
+        qt_set_error("qt_backend_get_info: out is NULL");
+        return false;
+    }
+    if (index < 0) {
+        qt_set_error("qt_backend_get_info: index %d is negative", index);
+        return false;
+    }
+
+    ggml_backend_load_all();
+    const size_t count = ggml_backend_dev_count();
+    if ((size_t) index >= count) {
+        qt_set_error("qt_backend_get_info: index %d out of range (count=%zu)", index, count);
+        return false;
+    }
+
+    ggml_backend_dev_t dev = ggml_backend_dev_get((size_t) index);
+    ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(dev);
+    struct ggml_backend_dev_props props;
+    ggml_backend_dev_get_props(dev, &props);
+
+    out->name        = ggml_backend_dev_name(dev);
+    out->backend_reg = reg ? ggml_backend_reg_name(reg) : nullptr;
+    out->description = props.description ? props.description : ggml_backend_dev_description(dev);
+    out->device_id   = props.device_id;
+    out->device_type = (int) props.type;
+    return true;
+}
+
 void qt_init_default_params(struct qt_init_params * p) {
     p->abi_version      = QT_ABI_VERSION;
     p->talker_path      = nullptr;
