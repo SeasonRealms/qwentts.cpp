@@ -265,6 +265,35 @@ typedef void (*qt_log_cb)(enum qt_log_level level, const char * msg, void * user
 // whisper_log_set / llama_log_set / ov_log_set.
 QT_API void qt_log_set(qt_log_cb cb, void * user_data);
 
+// One device the runtime can run on, as enumerated before any model is
+// loaded. name is the exact string qt_init_params.device accepts
+// ("CUDA0", "Vulkan1", "CPU", ...): read it once for a device picker,
+// store it, and hand it back through qt_init_params.device to pin that
+// handle to this device. backend is the family that registered it
+// ("CUDA", "Vulkan", "CPU", ...); description is the human readable
+// device string; device_id is a PCI style "domain:bus:device.function"
+// id, NULL or empty when the device reports none; type is the ggml
+// ggml_backend_dev_type value (CPU / GPU / ACCEL). Every pointer points
+// into backend owned storage and stays valid for the process lifetime,
+// so neither the struct nor the strings are ever freed by the caller.
+struct qt_device_info {
+    const char * name;
+    const char * backend;
+    const char * description;
+    const char * device_id;
+    int          type;
+};
+
+// Enumerate the devices visible to the runtime, with no handle and no
+// model: qt_device_count() loads the backend plugins once and returns
+// how many devices registered, qt_device_get_info() fills out for an
+// index in [0, qt_device_count()) and returns false with
+// qt_last_error() set when out is NULL or the index is out of range.
+// Safe to call before qt_init, and the intended order: enumerate here,
+// keep the name the user picked, pass it to qt_init_params.device.
+QT_API int  qt_device_count(void);
+QT_API bool qt_device_get_info(int index, struct qt_device_info * out);
+
 // Synthesis parameters. Strings are NULL terminated UTF-8; NULL maps
 // to empty where the underlying pipeline accepts it. The selection
 // between base / custom_voice / voice_design synthesis mode is driven
