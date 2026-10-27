@@ -224,6 +224,46 @@ void qt_log_set(qt_log_cb cb, void * user_data) {
     g_log_cb.store(cb, std::memory_order_release);
 }
 
+int qt_device_count(void) {
+    ggml_backend_load_all();
+    return (int) ggml_backend_dev_count();
+}
+
+bool qt_device_get_info(int index, struct qt_device_info * out) {
+    if (!out) {
+        qt_set_error("qt_device_get_info: out is NULL");
+        return false;
+    }
+    if (index < 0) {
+        qt_set_error("qt_device_get_info: index %d is negative", index);
+        return false;
+    }
+
+    ggml_backend_load_all();
+    const size_t count = ggml_backend_dev_count();
+    if ((size_t) index >= count) {
+        qt_set_error("qt_device_get_info: index %d out of range (count=%zu)", index, count);
+        return false;
+    }
+
+    ggml_backend_dev_t dev = ggml_backend_dev_get((size_t) index);
+    ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(dev);
+    struct ggml_backend_dev_props props = {};
+    ggml_backend_dev_get_props(dev, &props);
+
+    // props carries the same strings the *_dev_* getters return, but
+    // description and device_id may be NULL on a backend that does not
+    // fill them; fall back to the getters so the caller never sees a
+    // NULL where a name was promised. The returned pointers belong to
+    // the backend and outlive every handle.
+    out->name        = props.name ? props.name : ggml_backend_dev_name(dev);
+    out->backend     = reg ? ggml_backend_reg_name(reg) : nullptr;
+    out->description = props.description ? props.description : ggml_backend_dev_description(dev);
+    out->device_id   = props.device_id;
+    out->type        = (int) props.type;
+    return true;
+}
+
 // Codec chunk default, shared by qt_init_default_params and the
 // qt_init resolution of an unset value.
 static const float QT_CODEC_CHUNK_SEC_DEFAULT = 24.0f;
